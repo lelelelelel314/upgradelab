@@ -1,0 +1,29 @@
+{
+  "suite": "pydantic-v2-migrations",
+  "dependency_version": "2.13.5",
+  "total_cases": 3,
+  "succeeded_cases": 3,
+  "success_rate": 1.0,
+  "runner": "deterministic migration baseline",
+  "scope": "three fixtures; not a general model success-rate claim",
+  "cases": [
+    {
+      "case": "field-pattern",
+      "visible_test_exit_code": 0,
+      "acceptance_exit_code": 0,
+      "patch_sha256": "bba4f3cf66ffc9b7e41310a0bf24ee70769dca539e6cb0e06157ed8ea3fc1b0c"
+    },
+    {
+      "case": "field-validator",
+      "visible_test_exit_code": 0,
+      "acceptance_exit_code": 0,
+      "patch_sha256": "879fdb6a0ef0892bff45cf4b8d193580f56bd98235383897f695699b3e536bbb"
+    },
+    {
+      "case": "model-validate",
+      "visible_test_exit_code": 0,
+      "acceptance_exit_code": 0,
+      "patch_sha256": "825c5fc255507e1dab43dd7288d96a72e24b5e29e97002b8a9b933b2f21dbc84"
+    }
+  ]
+}

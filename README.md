@@ -86,18 +86,19 @@ responses easy to record or replay.
 
 ## Run the real migration benchmark
 
-The repository includes one pinned Pydantic v2 case. `Field(regex=...)` fails during model
-construction on Pydantic 2.13.5; the candidate changes it to `pattern=...`. A visible test checks
-the normal path, while a separate acceptance script checks schema preservation and invalid-input
-rejection. The deterministic repairer is a benchmark baseline, not a model-performance claim.
+The repository includes three pinned Pydantic 2.13.5 migrations: `Field(regex=...)` to
+`pattern=...`, `@validator` to `@field_validator`, and `parse_obj` to `model_validate`. Every case
+must first reproduce a real failure, then pass a visible contract and a separate acceptance script.
+The deterministic repairer is a benchmark baseline, not a model-performance claim.
 
 ```powershell
 pip install -e ".[benchmark]"
 upgradelab benchmark-pydantic --output-dir .upgradelab/benchmarks
 ```
 
-The recorded single-case result is in
-[benchmarks/results/pydantic-v2-field-pattern.json](./benchmarks/results/pydantic-v2-field-pattern.json).
+The recorded 3/3 suite result is in
+[benchmarks/results/pydantic-v2-suite.json](./benchmarks/results/pydantic-v2-suite.json), with the
+original single-case record retained for comparison.
 
 ## Repair boundary
 
@@ -127,9 +128,8 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 PYTHONPATH=src python -m compileall -q src tests
 ```
 
-The suite includes a real OpenRath 2.0 runtime integration test and a Pydantic 2.13.5 migration
-benchmark. It also covers lease
-takeover, stale-worker fencing, effect replay, uncertain-effect
+The suite includes a real OpenRath 2.0 runtime integration test and three Pydantic 2.13.5 migration
+cases. It also covers lease takeover, stale-worker fencing, effect replay, uncertain-effect
 reconciliation, checkpoint binding, context budgets, the repairer process protocol, the OpenRath
 workflow contract, and a real Git/test repair path.
 
@@ -143,8 +143,8 @@ container or microVM and outbound-network policy.
 The deeper design and delivery notes are in [UpgradeLab项目设计.md](./UpgradeLab项目设计.md) and
 [秋招7天执行计划.md](./秋招7天执行计划.md).
 
-The portfolio page is a self-contained file at [docs/index.html](./docs/index.html). It can be
-served from GitHub Pages without a frontend build step.
+The portfolio page is a self-contained file at [docs/index.html](./docs/index.html). The Pages
+workflow publishes it directly from `main` without a frontend build step.
 
 ## Attribution
 

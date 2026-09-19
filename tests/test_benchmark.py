@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from importlib.metadata import PackageNotFoundError, version
 
-from upgradelab.benchmark import run_pydantic_pattern_benchmark
+from upgradelab.benchmark import run_pydantic_benchmark_suite
 
 
 def has_pydantic_v2() -> bool:
@@ -16,14 +16,18 @@ def has_pydantic_v2() -> bool:
 
 class PydanticBenchmarkTests(unittest.TestCase):
     @unittest.skipUnless(has_pydantic_v2(), "Pydantic v2 is not installed")
-    def test_real_pydantic_v2_migration_case(self) -> None:
+    def test_real_pydantic_v2_migration_suite(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            result = run_pydantic_pattern_benchmark(temp_dir)
+            result = run_pydantic_benchmark_suite(temp_dir)
 
-            self.assertEqual(result.status, "SUCCEEDED")
-            self.assertEqual(result.visible_test_exit_code, 0)
-            self.assertEqual(result.acceptance_exit_code, 0)
-            self.assertTrue(result.patch_sha256)
+            self.assertEqual(result.total_cases, 3)
+            self.assertEqual(result.succeeded_cases, 3)
+            self.assertEqual(result.success_rate, 1.0)
+            for case in result.cases:
+                self.assertEqual(case.status, "SUCCEEDED")
+                self.assertEqual(case.visible_test_exit_code, 0)
+                self.assertEqual(case.acceptance_exit_code, 0)
+                self.assertTrue(case.patch_sha256)
 
 
 if __name__ == "__main__":

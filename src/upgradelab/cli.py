@@ -8,7 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import uuid4
 
-from .benchmark import run_pydantic_pattern_benchmark
+from .benchmark import run_pydantic_benchmark_suite
 from .models import TaskSpec
 from .pipeline import RepairPipeline
 from .repairers import SubprocessRepairer
@@ -99,9 +99,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo":
         return _run_demo(Path(args.output_dir))
     if args.command == "benchmark-pydantic":
-        result = run_pydantic_pattern_benchmark(args.output_dir)
+        result = run_pydantic_benchmark_suite(args.output_dir)
         _print_json(asdict(result))
-        return 0 if result.status == "SUCCEEDED" else 1
+        return 0 if result.succeeded_cases == result.total_cases else 1
     raise AssertionError(args.command)
 
 
