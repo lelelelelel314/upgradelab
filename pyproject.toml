@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "upgradelab"
+version = "0.1.0"
+description = "A durable backend for evidence-based dependency upgrade repair workflows"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "UpgradeLab contributors" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9"]
+openrath = ["openrath>=2.0,<2.1"]
+
+[project.scripts]
+upgradelab = "upgradelab.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/upgradelab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

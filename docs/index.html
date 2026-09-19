@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="UpgradeLab：可恢复、可审计的依赖升级修复 Agent 后端。">
+  <title>UpgradeLab · Repair evidence</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23070b10'/%3E%3Cpath d='M17 19v19c0 7 5 11 15 11s15-4 15-11V19' fill='none' stroke='%2365e5ce' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='m26 32 5 5 9-11' fill='none' stroke='%23d7ff67' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --ink:#eef7f5; --muted:#91a3a6; --dim:#66777b; --line:#213037;
+      --panel:#101820; --panel-2:#0c1319; --bg:#070b10; --mint:#65e5ce;
+      --acid:#d7ff67; --orange:#ff9d66; --radius:18px;
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:var(--bg); font:16px/1.65 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.3; background-image:linear-gradient(rgba(101,229,206,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(101,229,206,.035) 1px,transparent 1px); background-size:42px 42px; mask-image:linear-gradient(to bottom,black,transparent 82%); }
+    a { color:inherit; }
+    button { font:inherit; }
+    .shell { width:min(1180px,calc(100% - 40px)); margin:auto; position:relative; }
+    nav { height:76px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:760; letter-spacing:.02em; text-decoration:none; }
+    .mark { width:29px; height:29px; border:2px solid var(--mint); border-radius:8px; display:grid; place-items:center; color:var(--acid); font:700 13px/1 ui-monospace,monospace; transform:rotate(-3deg); }
+    .nav-links { display:flex; gap:24px; color:var(--muted); font-size:.9rem; }
+    .nav-links a { text-decoration:none; }
+    .nav-links a:hover { color:var(--mint); }
+    header { padding:76px 0 48px; display:grid; grid-template-columns:1.25fr .75fr; gap:56px; align-items:end; }
+    .kicker { color:var(--mint); text-transform:uppercase; letter-spacing:.16em; font:700 .76rem/1.2 ui-monospace,monospace; }
+    h1 { margin:16px 0 22px; max-width:850px; font-size:clamp(2.8rem,7vw,6.8rem); line-height:.92; letter-spacing:-.065em; }
+    h1 span { color:var(--acid); }
+    .lede { max-width:680px; margin:0; color:#b7c6c8; font-size:clamp(1rem,2vw,1.24rem); }
+    .hero-side { border-left:1px solid var(--line); padding-left:28px; }
+    .hero-side p { color:var(--muted); margin:0 0 24px; }
+    .command { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 15px; color:#c6f8ef; background:#05090d; border:1px solid var(--line); border-radius:12px; font:13px/1.45 ui-monospace,monospace; overflow:hidden; }
+    .command code { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .copy { border:0; color:var(--bg); background:var(--mint); border-radius:8px; padding:7px 10px; cursor:pointer; font-weight:750; }
+    .proof { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:14px 0 66px; }
+    .proof article { min-height:128px; padding:22px; background:linear-gradient(145deg,var(--panel),#0c1218); border:1px solid var(--line); border-radius:var(--radius); }
+    .number { display:block; margin-bottom:14px; color:var(--acid); font:700 2.15rem/1 ui-monospace,monospace; }
+    .proof p { margin:0; color:var(--muted); font-size:.9rem; }
+    section { padding:58px 0; border-top:1px solid var(--line); }
+    .section-head { display:flex; justify-content:space-between; gap:32px; align-items:end; margin-bottom:30px; }
+    h2 { margin:7px 0 0; font-size:clamp(2rem,4vw,3.5rem); line-height:1.05; letter-spacing:-.045em; }
+    .section-head p { max-width:460px; margin:0; color:var(--muted); }
+    .console { display:grid; grid-template-columns:300px 1fr; min-height:520px; overflow:hidden; background:var(--panel-2); border:1px solid #2a3a42; border-radius:22px; box-shadow:0 26px 70px rgba(0,0,0,.3); }
+    .run-rail { padding:24px; border-right:1px solid var(--line); }
+    .run-id { color:var(--dim); font:12px/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }
+    .status { display:inline-flex; align-items:center; gap:8px; margin:18px 0 28px; padding:7px 10px; color:var(--acid); border:1px solid #41522d; border-radius:99px; font:700 12px/1 ui-monospace,monospace; }
+    .status::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--acid); box-shadow:0 0 15px var(--acid); }
+    .stage-button { width:100%; display:grid; grid-template-columns:28px 1fr; gap:10px; align-items:start; padding:12px 8px; border:0; border-left:2px solid var(--line); color:var(--muted); background:none; text-align:left; cursor:pointer; }
+    .stage-button b { color:inherit; font-size:.92rem; }
+    .stage-button small { display:block; margin-top:2px; color:var(--dim); }
+    .stage-button.active { color:var(--mint); border-left-color:var(--mint); background:linear-gradient(90deg,rgba(101,229,206,.08),transparent); }
+    .stage-button .seq { font:12px/1.7 ui-monospace,monospace; }
+    .evidence { padding:30px; }
+    .evidence-top { display:flex; justify-content:space-between; gap:20px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+    .evidence h3 { margin:0; font-size:1.35rem; }
+    .mono { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .event-tag { color:var(--mint); font:12px/1.4 ui-monospace,monospace; }
+    .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:24px 0; }
+    .detail { padding:16px; background:#080e13; border:1px solid var(--line); border-radius:12px; }
+    .detail span { display:block; color:var(--dim); font-size:.76rem; text-transform:uppercase; letter-spacing:.09em; }
+    .detail strong { display:block; margin-top:8px; font:600 .9rem/1.45 ui-monospace,monospace; overflow-wrap:anywhere; }
+    pre { margin:0; padding:20px; overflow:auto; color:#c9d9db; background:#05090d; border:1px solid var(--line); border-radius:14px; font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .plus { color:var(--acid); } .minus { color:#ff8b8b; }
+    .architecture { display:grid; grid-template-columns:repeat(7,minmax(90px,1fr)); align-items:center; gap:10px; }
+    .node { min-height:105px; display:grid; place-items:center; padding:15px; background:var(--panel); border:1px solid var(--line); border-radius:14px; text-align:center; font-weight:650; }
+    .node small { display:block; color:var(--muted); font-weight:450; }
+    .arrow { color:var(--mint); text-align:center; font-size:1.5rem; }
+    .decisions { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .decision { padding:24px; border:1px solid var(--line); border-radius:var(--radius); background:rgba(16,24,32,.76); }
+    .decision .index { color:var(--mint); font:12px ui-monospace,monospace; }
+    .decision h3 { margin:28px 0 10px; font-size:1.18rem; }
+    .decision p { margin:0; color:var(--muted); }
+    .boundary { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .boundary article { padding:24px; border-radius:var(--radius); }
+    .done { background:#101c1b; border:1px solid #24473f; }
+    .next { background:#1a1512; border:1px solid #4d392c; }
+    .boundary h3 { margin-top:0; }
+    .boundary ul { padding-left:20px; margin-bottom:0; color:#b8c5c6; }
+    footer { padding:32px 0 54px; display:flex; justify-content:space-between; gap:20px; color:var(--dim); border-top:1px solid var(--line); font-size:.88rem; }
+    @media (max-width:900px) { header{grid-template-columns:1fr}.hero-side{border-left:0;padding-left:0}.proof{grid-template-columns:1fr 1fr}.console{grid-template-columns:1fr}.run-rail{border-right:0;border-bottom:1px solid var(--line)}.stages{display:grid;grid-template-columns:1fr 1fr}.architecture{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}.decisions{grid-template-columns:1fr}.boundary{grid-template-columns:1fr} }
+    @media (max-width:600px) { .shell{width:min(100% - 24px,1180px)}nav{height:64px}.nav-links a:not(:last-child){display:none}header{padding-top:48px}.proof{grid-template-columns:1fr}.section-head{display:block}.section-head p{margin-top:16px}.evidence{padding:18px}.detail-grid{grid-template-columns:1fr}.stages{grid-template-columns:1fr}footer{display:block} }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav aria-label="主导航">
+      <a class="brand" href="#top"><span class="mark">UL</span>UpgradeLab</a>
+      <div class="nav-links"><a href="#run">运行证据</a><a href="#architecture">架构</a><a href="#boundary">边界</a></div>
+    </nav>
+
+    <header id="top">
+      <div>
+        <div class="kicker">Durable agent backend · OpenRath v2</div>
+        <h1>让依赖升级修复<br><span>经得起重试。</span></h1>
+        <p class="lede">从失败栈选择最小上下文，调用可替换的修复 Agent，用事务、租约和副作用账本保护 Git 工作区，最后交付补丁与可追溯证据。</p>
+      </div>
+      <aside class="hero-side">
+        <p>下面展示的是仓库自带 fixture 的真实执行轨迹。它创建 Git 提交、复现失败、应用 unified diff，并重新运行测试。</p>
+        <div class="command"><code id="demo-command">PYTHONPATH=src python -m upgradelab.cli demo</code><button class="copy" type="button" aria-label="复制演示命令">复制</button></div>
+      </aside>
+    </header>
+
+    <div class="proof" aria-label="项目证据摘要">
+      <article><span class="number">13+1</span><p>核心测试，加真实 OpenRath 2.0 集成测试</p></article>
+      <article><span class="number">10</span><p>示例运行中持久化的审计事件</p></article>
+      <article><span class="number">4+1</span><p>OpenRath 工作步骤，加终态证据</p></article>
+      <article><span class="number">0</span><p>执行命令使用 shell 拼接的次数</p></article>
+    </div>
+
+    <section id="run">
+      <div class="section-head">
+        <div><div class="kicker">Evidence explorer</div><h2>一次真实修复运行</h2></div>
+        <p>点击阶段查看输入、约束和持久化证据。展示数据来自本地端到端演示，不是设计稿中的占位成绩。</p>
+      </div>
+      <div class="console">
+        <aside class="run-rail">
+          <div class="run-id">run / 8598ab36-bc26-475a-8882-8e6322f02e5d</div>
+          <div class="status">SUCCEEDED</div>
+          <div class="stages" role="tablist" aria-label="运行阶段">
+            <button class="stage-button active" data-stage="reproduce" role="tab"><span class="seq">01</span><span><b>Reproduce</b><small>锁定失败证据</small></span></button>
+            <button class="stage-button" data-stage="repair" role="tab"><span class="seq">02</span><span><b>Repair</b><small>有界上下文</small></span></button>
+            <button class="stage-button" data-stage="apply" role="tab"><span class="seq">03</span><span><b>Apply</b><small>幂等副作用</small></span></button>
+            <button class="stage-button" data-stage="verify" role="tab"><span class="seq">04</span><span><b>Verify</b><small>证据绑定</small></span></button>
+            <button class="stage-button" data-stage="complete" role="tab"><span class="seq">05</span><span><b>Complete</b><small>可审计终态</small></span></button>
+          </div>
+        </aside>
+        <div class="evidence" aria-live="polite">
+          <div class="evidence-top"><div><div class="event-tag" id="event-tag">STAGE_STARTED · event 03</div><h3 id="stage-title">复现升级失败</h3></div><div class="mono" id="stage-time">116 ms</div></div>
+          <div class="detail-grid" id="detail-grid"></div>
+          <pre id="stage-code"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="section-head">
+        <div><div class="kicker">System design</div><h2>模型之外的可靠性</h2></div>
+        <p>OpenRath 负责工作流边界；UpgradeLab 负责依赖修复领域、工作区一致性与可审计结果。</p>
+      </div>
+      <div class="architecture" aria-label="系统架构流程">
+        <div class="node">OpenRath<small>durable workflow</small></div><div class="arrow">→</div>
+        <div class="node">Context selector<small>traceback + AST</small></div><div class="arrow">→</div>
+        <div class="node">Repairer<small>JSON process protocol</small></div><div class="arrow">→</div>
+        <div class="node">Git workspace<small>effect ledger + tests</small></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><div><div class="kicker">Engineering choices</div><h2>三个后端重点</h2></div></div>
+      <div class="decisions">
+        <article class="decision"><span class="index">01 / CONCURRENCY</span><h3>租约 + fencing token</h3><p>租约过期后新 Worker 获得更大的 token；旧 Worker 即使恢复，也无法提交过期写入。</p></article>
+        <article class="decision"><span class="index">02 / SIDE EFFECTS</span><h3>UNKNOWN 需要对账</h3><p>补丁写入后进程退出时，系统检查反向补丁和源码指纹。没有证据就不盲目重放。</p></article>
+        <article class="decision"><span class="index">03 / CONTEXT</span><h3>选择过程可解释</h3><p>每个上下文文件记录来源：traceback、直接 import 或反向调用方，并受文件数和字节预算限制。</p></article>
+      </div>
+    </section>
+
+    <section id="boundary">
+      <div class="section-head"><div><div class="kicker">Honest scope</div><h2>完成范围与下一步</h2></div><p>项目页面只展示当前代码能够证明的事实；未实现部分明确留在路线图。</p></div>
+      <div class="boundary">
+        <article class="done"><h3>现在可以验证</h3><ul><li>OpenRath v2 工作流契约</li><li>SQLite 事务、CAS、租约与 fence</li><li>副作用重放与显式对账</li><li>真实 Git patch / unittest 闭环</li><li>独立 HTML 审计报告</li></ul></article>
+        <article class="next"><h3>下一里程碑</h3><ul><li>容器或 microVM 执行后端</li><li>真实 Pydantic 迁移任务集</li><li>hidden contract tests 与候选对比</li><li>成功率、成本和恢复故障实验</li><li>公开只读运行回放</li></ul></article>
+      </div>
+    </section>
+
+    <footer><span>UpgradeLab · built around evidence, leases and explicit recovery.</span><span>MIT · 2026</span></footer>
+  </div>
+
+  <script>
+    const stages = {
+      reproduce: { tag:"STAGE_STARTED · event 03", title:"复现升级失败", time:"116 ms", details:[["base commit","f455f7a38f97…"],["command","python -m unittest test_calc.py"],["exit code","1"],["workspace","trusted local Git"]], code:"AssertionError: -1 != 5\n\nFailure is preserved before any patch is requested." },
+      repair: { tag:"STAGE_STARTED · event 04", title:"构造最小修复上下文", time:"28 ms", details:[["selected files","2"],["context bytes","185"],["strategy","traceback + import graph"],["truncated","false"]], code:"test_calc.py   ← traceback\ncalc.py        ← imported by test_calc.py\n\nBudget: 24 files / 160,000 bytes" },
+      apply: { tag:"EFFECT_FINISHED · event 07", title:"应用一次补丁副作用", time:"69 ms", details:[["operation key","candidate-1/apply-patch"],["effect","SUCCEEDED"],["fence token","1"],["bytecode invalidated","true"]], code:"<span class='minus'>-    return left - right</span>\n<span class='plus'>+    return left + right</span>\n\npatch sha256  a090e70f16a379bd…" },
+      verify: { tag:"CHECKPOINT_RECORDED · event 09", title:"绑定源码与环境后验证", time:"108 ms", details:[["test exit","0"],["tests","1 passed"],["source fp","5c8b1467e139…"],["environment fp","267d2b0a3be1…"]], code:".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\n<span class='plus'>OK</span>" },
+      complete: { tag:"RUN_TRANSITIONED · event 10", title:"提交可审计终态", time:"480 ms total", details:[["from","RUNNING"],["to","SUCCEEDED"],["attempt","1"],["touched files","calc.py"]], code:"result = {\n  status: \"SUCCEEDED\",\n  test_exit_code: 0,\n  patch_sha256: \"a090e70f…\",\n  evidence_events: 10\n}" }
+    };
+    const buttons = [...document.querySelectorAll(".stage-button")];
+    const render = key => {
+      const value = stages[key];
+      document.querySelector("#event-tag").textContent = value.tag;
+      document.querySelector("#stage-title").textContent = value.title;
+      document.querySelector("#stage-time").textContent = value.time;
+      document.querySelector("#detail-grid").innerHTML = value.details.map(([label,data]) => `<div class="detail"><span>${label}</span><strong>${data}</strong></div>`).join("");
+      document.querySelector("#stage-code").innerHTML = value.code;
+      buttons.forEach(button => {
+        const active = button.dataset.stage === key;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", String(active));
+      });
+    };
+    buttons.forEach(button => button.addEventListener("click", () => render(button.dataset.stage)));
+    document.querySelector(".copy").addEventListener("click", async event => {
+      const button = event.currentTarget;
+      const command = document.querySelector("#demo-command").textContent;
+      try {
+        await navigator.clipboard.writeText(command);
+      } catch {
+        const field = document.createElement("textarea");
+        field.value = command;
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        document.execCommand("copy");
+        field.remove();
+      }
+      button.textContent = "已复制";
+      setTimeout(() => button.textContent = "复制", 1200);
+    });
+    render("reproduce");
+  </script>
+</body>
+</html>
