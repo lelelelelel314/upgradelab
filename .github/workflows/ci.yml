@@ -19,3 +19,15 @@ jobs:
         run: PYTHONPATH=src python -m compileall -q src tests
       - name: Test
         run: PYTHONPATH=src python -m unittest discover -s tests -v
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install OpenRath and benchmark dependencies
+        run: python -m pip install -e ".[openrath,benchmark]"
+      - name: Test real runtime and migration benchmark
+        run: python -m unittest discover -s tests -v

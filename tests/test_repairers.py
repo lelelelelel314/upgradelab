@@ -20,6 +20,7 @@ class SubprocessRepairerTests(unittest.TestCase):
             agent.write_text(
                 "import json, sys\n"
                 "request = json.load(sys.stdin)\n"
+                "assert 'acceptance_command' not in request['task']\n"
                 "assert request['context'][0]['content'].startswith('def add')\n"
                 "json.dump({'patch': 'diff --git a/calc.py b/calc.py\\n', "
                 "'touched_files': ['calc.py'], 'rationale': 'fix contract'}, sys.stdout)\n",
@@ -32,6 +33,7 @@ class SubprocessRepairerTests(unittest.TestCase):
                 target_dependency="demo",
                 target_version="2",
                 test_command=("python", "test.py"),
+                acceptance_command=("python", "hidden.py"),
             )
             failure = CommandResult(("python", "test.py"), 1, "", "boom", 0.1)
             context = ContextManifest((ContextFile("calc.py", "traceback", 31),), 31, False)

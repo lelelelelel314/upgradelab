@@ -14,11 +14,15 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .errors import EffectNeedsReconciliation
 from .fingerprints import file_set_fingerprint
 from .models import Lease
 from .store import SQLiteRunStore
+
+if TYPE_CHECKING:
+    from .policy import PatchPolicy
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,9 +120,18 @@ class LocalGitWorkspace:
         candidate: PatchCandidate,
         *,
         operation_key: str,
-    ) -> dict[str, str | bool]:
-        self._validate_paths(candidate.touched_files)
-        request = {"patch_sha256": candidate.sha256, "touched_files": list(candidate.touched_files)}
+        policy: PatchPolicy | None = None,
+    ) -> dict[str, object]:
+        from .policy import PatchPolicy
+
+        selected_policy = policy or PatchPolicy()
+        inspection = selected_policy.inspect(candidate)
+        self._validate_paths(inspection.paths)
+        request = {
+            "patch_sha256": candidate.sha256,
+            "touched_files": list(inspection.paths),
+            "policy_version": selected_policy.version,
+        }
         try:
             decision = store.begin_effect(
                 lease,
@@ -163,11 +176,15 @@ class LocalGitWorkspace:
             raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "git apply failed")
 
         invalidated = self._invalidate_python_bytecode(candidate.touched_files)
-        evidence: dict[str, str | bool] = {
+        evidence: dict[str, object] = {
             "source_fingerprint": self.source_fingerprint(candidate.touched_files),
             "patch_sha256": candidate.sha256,
             "reconciled": False,
             "bytecode_invalidated": invalidated,
+            "policy_version": selected_policy.version,
+            "additions": inspection.additions,
+            "deletions": inspection.deletions,
+            "patch_bytes": inspection.size_bytes,
         }
         store.finish_effect(
             lease,
@@ -179,7 +196,12 @@ class LocalGitWorkspace:
 
     def _git_apply(self, patch: str, *, reverse: bool = False, check: bool = False) -> CommandResult:
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".diff", encoding="utf-8", delete=False, dir=self.root
+            mode="w",
+            suffix=".diff",
+            encoding="utf-8",
+            newline="\n",
+            delete=False,
+            dir=self.root,
         ) as handle:
             handle.write(patch)
             patch_path = Path(handle.name)

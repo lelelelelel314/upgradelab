@@ -4,6 +4,7 @@ import ast
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 
 TRACEBACK_FILE = re.compile(r"File [\"']([^\"']+)[\"']")
@@ -30,10 +31,18 @@ class ContextManifest:
 class FailureContextSelector:
     """Build a bounded, explainable context set from a Python failure trace."""
 
-    def __init__(self, root: Path, *, max_files: int = 24, max_bytes: int = 160_000):
+    def __init__(
+        self,
+        root: Path,
+        *,
+        max_files: int = 24,
+        max_bytes: int = 160_000,
+        exclude: Callable[[str], bool] | None = None,
+    ):
         self.root = root.resolve()
         self.max_files = max_files
         self.max_bytes = max_bytes
+        self.exclude = exclude or (lambda path: False)
 
     def select(self, failure_text: str) -> ContextManifest:
         python_files = self._python_files()
@@ -64,6 +73,8 @@ class FailureContextSelector:
             if relative in seen:
                 continue
             seen.add(relative)
+            if self.exclude(relative):
+                continue
             size = (self.root / relative).stat().st_size
             if len(selected) >= self.max_files or total + size > self.max_bytes:
                 truncated = True

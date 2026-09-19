@@ -16,6 +16,8 @@ retries and worker crashes, rather than a chat interface.
 - idempotent effect ledger with explicit reconciliation for uncertain side effects;
 - real Git patch application and test execution using argument vectors without a shell;
 - traceback and import-graph context selection with file and byte budgets;
+- patch-policy enforcement that derives paths from the diff and protects tests and evaluators;
+- an independent acceptance command withheld from repairer input and public report output;
 - model-agnostic JSON repairer protocol for hosted models, local models, or custom agents;
 - OpenRath v2 workflow adapter with four explicit steps and a persisted terminal result;
 - standalone HTML evidence reports and a deterministic end-to-end demo.
@@ -82,6 +84,28 @@ The repair agent reads one JSON request from stdin and emits one JSON response:
 This process boundary keeps model-provider code out of the execution core and makes requests and
 responses easy to record or replay.
 
+## Run the real migration benchmark
+
+The repository includes one pinned Pydantic v2 case. `Field(regex=...)` fails during model
+construction on Pydantic 2.13.5; the candidate changes it to `pattern=...`. A visible test checks
+the normal path, while a separate acceptance script checks schema preservation and invalid-input
+rejection. The deterministic repairer is a benchmark baseline, not a model-performance claim.
+
+```powershell
+pip install -e ".[benchmark]"
+upgradelab benchmark-pydantic --output-dir .upgradelab/benchmarks
+```
+
+The recorded single-case result is in
+[benchmarks/results/pydantic-v2-field-pattern.json](./benchmarks/results/pydantic-v2-field-pattern.json).
+
+## Repair boundary
+
+Before `git apply`, UpgradeLab parses the unified diff and requires its actual file paths to match
+the candidate declaration. The default policy rejects test, CI, evaluator, binary, symlink,
+submodule, oversized, and path-traversal changes. Protected test files may seed import-graph
+discovery but their source is removed from the context sent across the repairer process boundary.
+
 ## OpenRath integration
 
 Install the optional runtime and construct the workflow through
@@ -103,7 +127,8 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 PYTHONPATH=src python -m compileall -q src tests
 ```
 
-The suite includes an optional real OpenRath 2.0 runtime integration test and covers lease
+The suite includes a real OpenRath 2.0 runtime integration test and a Pydantic 2.13.5 migration
+benchmark. It also covers lease
 takeover, stale-worker fencing, effect replay, uncertain-effect
 reconciliation, checkpoint binding, context budgets, the repairer process protocol, the OpenRath
 workflow contract, and a real Git/test repair path.

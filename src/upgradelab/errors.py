@@ -23,3 +23,7 @@ class EffectConflict(UpgradeLabError):
 
 class EffectNeedsReconciliation(UpgradeLabError):
     """An interrupted side effect must be reconciled before it can continue."""
+
+
+class PatchPolicyViolation(UpgradeLabError):
+    """A candidate patch crosses the configured repair boundary."""

@@ -16,6 +16,7 @@ from .context import ContextFile, ContextManifest, FailureContextSelector
 from .fingerprints import canonical_json_hash
 from .models import RunStatus, TaskSpec
 from .pipeline import Repairer
+from .policy import PatchPolicy
 from .store import SQLiteRunStore
 from .workspace import CommandResult, LocalGitWorkspace, PatchCandidate
 
@@ -54,6 +55,7 @@ def build_dependency_repair_workflow(
     repairer: Repairer,
     task: TaskSpec,
     domain_run_id: str,
+    patch_policy: PatchPolicy | None = None,
 ):
     """Build the four-step OpenRath workflow around UpgradeLab domain guards."""
     api = _api()
@@ -62,7 +64,8 @@ def build_dependency_repair_workflow(
     retry_policy = api["RetryPolicy"]
     workflow_base = api["Workflow"]
     session_type = api["Session"]
-    selector = FailureContextSelector(workspace.root)
+    selected_policy = patch_policy or PatchPolicy()
+    selector = FailureContextSelector(workspace.root, exclude=selected_policy.is_protected)
 
     class DependencyRepairWorkflow(workflow_base):
         def __init__(self) -> None:
@@ -99,7 +102,8 @@ def build_dependency_repair_workflow(
                 raw_context["total_bytes"],
                 raw_context["truncated"],
             )
-            candidate = repairer.propose(task, failure, manifest)
+            repair_task = TaskSpec.from_dict(task.public_dict())
+            candidate = repairer.propose(repair_task, failure, manifest)
             return {
                 **state,
                 "candidate": {
@@ -133,6 +137,7 @@ def build_dependency_repair_workflow(
                 lease,
                 candidate,
                 operation_key=f"candidate/{candidate.sha256}/apply",
+                policy=selected_policy,
             )
             return {**state, "patch_evidence": dict(evidence)}
 
@@ -151,6 +156,9 @@ def build_dependency_repair_workflow(
             )
             domain_store.advance_stage(lease, "verify")
             verification = workspace.run(task.test_command)
+            acceptance = None
+            if verification.succeeded and task.acceptance_command is not None:
+                acceptance = workspace.run(task.acceptance_command)
             source = workspace.source_fingerprint(candidate.touched_files)
             environment = canonical_json_hash(
                 {
@@ -158,6 +166,9 @@ def build_dependency_repair_workflow(
                     "dependency": task.target_dependency,
                     "version": task.target_version,
                     "command": list(task.test_command),
+                    "acceptance_command": (
+                        list(task.acceptance_command) if task.acceptance_command else None
+                    ),
                 }
             )
             domain_store.record_checkpoint(
@@ -165,7 +176,11 @@ def build_dependency_repair_workflow(
                 stage="verify",
                 source_fingerprint=source,
                 environment_fingerprint=environment,
-                payload={"verification": asdict(verification), "patch_sha256": candidate.sha256},
+                payload={
+                    "verification": asdict(verification),
+                    "acceptance": asdict(acceptance) if acceptance is not None else None,
+                    "patch_sha256": candidate.sha256,
+                },
             )
             if not verification.succeeded:
                 domain_store.transition(
@@ -175,11 +190,20 @@ def build_dependency_repair_workflow(
                     error="candidate failed verification",
                 )
                 raise RuntimeError("candidate failed verification")
+            if acceptance is not None and not acceptance.succeeded:
+                domain_store.transition(
+                    lease,
+                    RunStatus.FAILED,
+                    stage="failed",
+                    error="candidate failed independent acceptance",
+                )
+                raise RuntimeError("candidate failed independent acceptance")
             result = {
                 "source_fingerprint": source,
                 "environment_fingerprint": environment,
                 "patch_sha256": candidate.sha256,
                 "test_exit_code": verification.exit_code,
+                "acceptance_exit_code": acceptance.exit_code if acceptance is not None else None,
                 "touched_files": list(candidate.touched_files),
             }
             domain_store.transition(

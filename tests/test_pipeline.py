@@ -27,10 +27,13 @@ PATCH = textwrap.dedent(
     """
 )
 
+CONSTANT_PATCH = PATCH.replace("return left + right", "return 5")
+
 
 class FixedRepairer:
     def __init__(self) -> None:
         self.context_paths: tuple[str, ...] = ()
+        self.received_acceptance_command: tuple[str, ...] | None = ("unexpected",)
 
     def propose(
         self,
@@ -39,11 +42,26 @@ class FixedRepairer:
         context: ContextManifest,
     ) -> PatchCandidate:
         self.context_paths = context.paths()
+        self.received_acceptance_command = task.acceptance_command
         return PatchCandidate(
             patch=PATCH,
             touched_files=("calc.py",),
             rationale="Correct the behavior required by the failing contract test.",
         )
+
+
+class CheatingRepairer:
+    def propose(self, task, failure, context) -> PatchCandidate:
+        patch = PATCH.replace("calc.py", "test_calc.py").replace(
+            "def add(left, right):\n-    return left - right\n+    return left + right",
+            "class ContractTest(unittest.TestCase):\n-    def test_add(self):\n+    def disabled_test_add(self):",
+        )
+        return PatchCandidate(patch, ("calc.py",), "disable the failing test")
+
+
+class VisibleOnlyRepairer:
+    def propose(self, task, failure, context) -> PatchCandidate:
+        return PatchCandidate(CONSTANT_PATCH, ("calc.py",), "satisfy only the visible example")
 
 
 class RepairPipelineTest(unittest.TestCase):
@@ -92,6 +110,11 @@ class RepairPipelineTest(unittest.TestCase):
             target_dependency="fixture-lib",
             target_version="2.0.0",
             test_command=(sys.executable, "-m", "unittest", "test_calc.py"),
+            acceptance_command=(
+                sys.executable,
+                "-c",
+                "from calc import add; print('held-out-sentinel'); assert add(-2, 5) == 3",
+            ),
         )
         store.create_run(task, run_id="fixture-run")
         lease = store.claim_next("worker-1", lease_seconds=30)
@@ -107,12 +130,15 @@ class RepairPipelineTest(unittest.TestCase):
         self.assertEqual(result.status, RunStatus.SUCCEEDED)
         self.assertIn("return left + right", (self.root / "calc.py").read_text(encoding="utf-8"))
         self.assertEqual(result.verification.exit_code, 0)
+        self.assertEqual(result.acceptance.exit_code, 0)
         checkpoint = store.latest_checkpoint("fixture-run")
         self.assertEqual(checkpoint.stage, "verify")
         self.assertTrue(checkpoint.payload["patch_evidence"]["bytecode_invalidated"])
         self.assertEqual(store.get_run("fixture-run").result["test_exit_code"], 0)
-        self.assertIn("test_calc.py", repairer.context_paths)
+        self.assertEqual(store.get_run("fixture-run").result["acceptance_exit_code"], 0)
+        self.assertNotIn("test_calc.py", repairer.context_paths)
         self.assertIn("calc.py", repairer.context_paths)
+        self.assertIsNone(repairer.received_acceptance_command)
         event_types = [event["type"] for event in store.events("fixture-run")]
         self.assertIn("EFFECT_STARTED", event_types)
         self.assertIn("EFFECT_FINISHED", event_types)
@@ -122,6 +148,62 @@ class RepairPipelineTest(unittest.TestCase):
         self.assertIn("UpgradeLab run", report_html)
         self.assertIn("SUCCEEDED", report_html)
         self.assertIn("EFFECT_FINISHED", report_html)
+        self.assertIn("[withheld]", report_html)
+        self.assertNotIn("assert add(-2, 5)", report_html)
+        self.assertNotIn("held-out-sentinel", report_html)
+
+    def test_rejects_patch_that_hides_a_test_change(self) -> None:
+        store = SQLiteRunStore(Path(self.temp.name) / "policy.db")
+        task = TaskSpec(
+            repo_path=str(self.root),
+            base_commit=self.base_commit,
+            target_dependency="fixture-lib",
+            target_version="2.0.0",
+            test_command=(sys.executable, "-m", "unittest", "test_calc.py"),
+        )
+        store.create_run(task, run_id="policy-run")
+        lease = store.claim_next("worker-1", lease_seconds=30)
+        assert lease is not None
+
+        result = RepairPipeline(
+            store,
+            LocalGitWorkspace(self.root),
+            CheatingRepairer(),
+        ).execute(lease)
+
+        self.assertEqual(result.status, RunStatus.FAILED)
+        self.assertIn("PatchPolicyViolation", result.evidence["error"])
+        self.assertIn("def test_add", (self.root / "test_calc.py").read_text(encoding="utf-8"))
+        self.assertNotIn("EFFECT_STARTED", [event["type"] for event in store.events("policy-run")])
+
+    def test_independent_acceptance_rejects_visible_test_overfit(self) -> None:
+        store = SQLiteRunStore(Path(self.temp.name) / "acceptance.db")
+        task = TaskSpec(
+            repo_path=str(self.root),
+            base_commit=self.base_commit,
+            target_dependency="fixture-lib",
+            target_version="2.0.0",
+            test_command=(sys.executable, "-m", "unittest", "test_calc.py"),
+            acceptance_command=(
+                sys.executable,
+                "-c",
+                "from calc import add; assert add(-2, 5) == 3",
+            ),
+        )
+        store.create_run(task, run_id="acceptance-run")
+        lease = store.claim_next("worker-1", lease_seconds=30)
+        assert lease is not None
+
+        result = RepairPipeline(
+            store,
+            LocalGitWorkspace(self.root),
+            VisibleOnlyRepairer(),
+        ).execute(lease)
+
+        self.assertEqual(result.status, RunStatus.FAILED)
+        self.assertEqual(result.verification.exit_code, 0)
+        self.assertEqual(result.acceptance.exit_code, 1)
+        self.assertEqual(result.evidence["error"], "candidate failed independent acceptance")
 
 
 if __name__ == "__main__":

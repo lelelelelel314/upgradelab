@@ -8,6 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import uuid4
 
+from .benchmark import run_pydantic_pattern_benchmark
 from .models import TaskSpec
 from .pipeline import RepairPipeline
 from .repairers import SubprocessRepairer
@@ -44,6 +45,11 @@ def _parser() -> argparse.ArgumentParser:
     report.add_argument("--output", required=True)
     demo = sub.add_parser("demo", help="run a deterministic end-to-end fixture")
     demo.add_argument("--output-dir", default=".upgradelab/demos")
+    benchmark = sub.add_parser(
+        "benchmark-pydantic",
+        help="run the Pydantic v2 field-pattern repair benchmark",
+    )
+    benchmark.add_argument("--output-dir", default=".upgradelab/benchmarks")
     return parser
 
 
@@ -92,6 +98,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "demo":
         return _run_demo(Path(args.output_dir))
+    if args.command == "benchmark-pydantic":
+        result = run_pydantic_pattern_benchmark(args.output_dir)
+        _print_json(asdict(result))
+        return 0 if result.status == "SUCCEEDED" else 1
     raise AssertionError(args.command)
 
 

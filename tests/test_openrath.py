@@ -31,7 +31,7 @@ class FakeWorkspace:
             return CommandResult(argv, 1, "", "assertion failed", 0.1)
         return CommandResult(argv, 0, "ok", "", 0.1)
 
-    def apply_patch(self, store, lease, candidate, *, operation_key):
+    def apply_patch(self, store, lease, candidate, *, operation_key, policy=None):
         decision = store.begin_effect(
             lease,
             operation_key=operation_key,
@@ -52,7 +52,11 @@ class FakeWorkspace:
 
 
 class FixedRepairer:
+    def __init__(self) -> None:
+        self.received_acceptance_command: tuple[str, ...] | None = ("unexpected",)
+
     def propose(self, task, failure, context: ContextManifest) -> PatchCandidate:
+        self.received_acceptance_command = task.acceptance_command
         return PatchCandidate(
             "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n",
             ("a.py",),
@@ -115,12 +119,20 @@ class OpenRathWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             store = SQLiteRunStore(root / "domain.db")
-            task = TaskSpec(str(root), "base", "library", "2.0", ("python", "tests.py"))
+            task = TaskSpec(
+                str(root),
+                "base",
+                "library",
+                "2.0",
+                ("python", "tests.py"),
+                acceptance_command=("python", "private-verifier.py"),
+            )
             store.create_run(task, run_id="domain-run")
+            repairer = FixedRepairer()
             workflow = build_dependency_repair_workflow(
                 domain_store=store,
                 workspace=FakeWorkspace(root, "base"),
-                repairer=FixedRepairer(),
+                repairer=repairer,
                 task=task,
                 domain_run_id="domain-run",
             )
@@ -134,6 +146,7 @@ class OpenRathWorkflowTests(unittest.TestCase):
             self.assertEqual(submitted.status.value, "queued")
             self.assertEqual(completed.status.value, "succeeded")
             self.assertEqual(store.get_run("domain-run").status, RunStatus.SUCCEEDED)
+            self.assertIsNone(repairer.received_acceptance_command)
 
     def test_four_step_workflow_uses_domain_effect_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, patch.dict(
@@ -141,12 +154,20 @@ class OpenRathWorkflowTests(unittest.TestCase):
         ):
             root = Path(temp_dir)
             store = SQLiteRunStore(root / "domain.db")
-            task = TaskSpec(str(root), "base", "library", "2.0", ("python", "tests.py"))
+            task = TaskSpec(
+                str(root),
+                "base",
+                "library",
+                "2.0",
+                ("python", "tests.py"),
+                acceptance_command=("python", "private-verifier.py"),
+            )
             store.create_run(task, run_id="domain-run")
+            repairer = FixedRepairer()
             workflow = build_dependency_repair_workflow(
                 domain_store=store,
                 workspace=FakeWorkspace(root, "base"),
-                repairer=FixedRepairer(),
+                repairer=repairer,
                 task=task,
                 domain_run_id="domain-run",
             )
@@ -154,6 +175,7 @@ class OpenRathWorkflowTests(unittest.TestCase):
 
             state = workflow.reproduce({}, context)
             state = workflow.repair(state, context)
+            self.assertIsNone(repairer.received_acceptance_command)
             state = workflow.apply(state, context)
             state = workflow.verify(state, context)
 

@@ -47,6 +47,7 @@ class TaskSpec:
     target_dependency: str
     target_version: str
     test_command: tuple[str, ...]
+    acceptance_command: tuple[str, ...] | None = None
     max_rounds: int = 3
     token_budget: int = 50_000
 
@@ -59,6 +60,8 @@ class TaskSpec:
             raise ValueError("target dependency and version are required")
         if not self.test_command:
             raise ValueError("test_command must be an argument vector")
+        if self.acceptance_command is not None and not self.acceptance_command:
+            raise ValueError("acceptance_command must be non-empty when provided")
         if self.max_rounds < 1:
             raise ValueError("max_rounds must be positive")
         if self.token_budget < 1:
@@ -71,21 +74,34 @@ class TaskSpec:
             "target_dependency": self.target_dependency,
             "target_version": self.target_version,
             "test_command": list(self.test_command),
+            "acceptance_command": (
+                list(self.acceptance_command) if self.acceptance_command is not None else None
+            ),
             "max_rounds": self.max_rounds,
             "token_budget": self.token_budget,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TaskSpec:
+        acceptance = data.get("acceptance_command")
         return cls(
             repo_path=str(data["repo_path"]),
             base_commit=str(data["base_commit"]),
             target_dependency=str(data["target_dependency"]),
             target_version=str(data["target_version"]),
             test_command=tuple(str(item) for item in data["test_command"]),
+            acceptance_command=(
+                tuple(str(item) for item in acceptance) if acceptance is not None else None
+            ),
             max_rounds=int(data.get("max_rounds", 3)),
             token_budget=int(data.get("token_budget", 50_000)),
         )
+
+    def public_dict(self) -> dict[str, Any]:
+        """Task fields that may cross the repairer trust boundary."""
+        payload = self.to_dict()
+        payload.pop("acceptance_command", None)
+        return payload
 
 
 @dataclass(frozen=True, slots=True)

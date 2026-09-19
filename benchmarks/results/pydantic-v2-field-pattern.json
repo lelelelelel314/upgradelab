@@ -1,0 +1,10 @@
+{
+  "case": "pydantic-v2-field-pattern",
+  "dependency_version": "2.13.5",
+  "status": "SUCCEEDED",
+  "visible_test_exit_code": 0,
+  "acceptance_exit_code": 0,
+  "patch_sha256": "bba4f3cf66ffc9b7e41310a0bf24ee70769dca539e6cb0e06157ed8ea3fc1b0c",
+  "runner": "deterministic migration baseline",
+  "scope": "single fixture; not a general model success-rate claim"
+}

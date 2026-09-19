@@ -12,9 +12,18 @@ def write_html_report(store: SQLiteRunStore, run_id: str, output: str | Path) ->
     run = store.get_run(run_id)
     events = store.events(run_id)
     checkpoint = store.latest_checkpoint(run_id)
+    public_run = asdict(run)
+    if public_run["task"].get("acceptance_command") is not None:
+        public_run["task"]["acceptance_command"] = "[withheld]"
+    public_checkpoint = asdict(checkpoint) if checkpoint else None
+    if public_checkpoint is not None:
+        acceptance = public_checkpoint["payload"].get("acceptance")
+        if acceptance is not None:
+            acceptance["stdout"] = "[withheld]"
+            acceptance["stderr"] = "[withheld]"
     payload = {
-        "run": asdict(run),
-        "checkpoint": asdict(checkpoint) if checkpoint else None,
+        "run": public_run,
+        "checkpoint": public_checkpoint,
         "events": events,
     }
     serialized = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
@@ -49,9 +58,9 @@ details {{ margin-top:28px; }} pre {{ overflow:auto; background:#05080c; padding
 <h1>UpgradeLab run</h1>
 <section class="grid">
 <div class="card"><div class="label">Status</div><div class="value">{html.escape(run.status.value)}</div></div>
-<div class="card"><div class="label">Stage</div><div class="value">{html.escape(run.stage)}</div></div>
 <div class="card"><div class="label">Dependency</div><div class="value">{html.escape(run.task.target_dependency)} → {html.escape(run.task.target_version)}</div></div>
-<div class="card"><div class="label">Test exit</div><div class="value">{html.escape(str(result.get('test_exit_code', '—')))}</div></div>
+<div class="card"><div class="label">Visible tests</div><div class="value">exit {html.escape(str(result.get('test_exit_code', '—')))}</div></div>
+<div class="card"><div class="label">Independent acceptance</div><div class="value">exit {html.escape(str(result.get('acceptance_exit_code', '—')))}</div></div>
 </section>
 <h2>Audit timeline</h2>
 <table><thead><tr><th>#</th><th>Event</th><th>Evidence</th></tr></thead><tbody>{event_rows}</tbody></table>

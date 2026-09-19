@@ -15,6 +15,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9"]
 openrath = ["openrath>=2.0,<2.1"]
+benchmark = ["pydantic>=2.13,<3"]
 
 [project.scripts]
 upgradelab = "upgradelab.cli:main"

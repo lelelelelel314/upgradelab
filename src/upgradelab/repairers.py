@@ -43,7 +43,7 @@ class SubprocessRepairer:
     ) -> PatchCandidate:
         request = {
             "schema_version": 1,
-            "task": task.to_dict(),
+            "task": task.public_dict(),
             "failure": {
                 "argv": list(failure.argv),
                 "exit_code": failure.exit_code,
