@@ -140,8 +140,8 @@ operations to the selected worktree, and uses command timeouts, but it is not an
 sandbox. A production deployment should implement the same workspace interface with a disposable
 container or microVM and outbound-network policy.
 
-The deeper design and delivery notes are in [UpgradeLab项目设计.md](./UpgradeLab项目设计.md) and
-[秋招7天执行计划.md](./秋招7天执行计划.md).
+The deeper design and delivery notes are in
+[UpgradeLab项目设计.md](./UpgradeLab项目设计.md).
 
 The portfolio page is a self-contained file at [docs/index.html](./docs/index.html). The Pages
 workflow publishes it directly from `main` without a frontend build step.

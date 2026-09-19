@@ -178,24 +178,11 @@ Pydantic 的 bump-pydantic 可作为固定历史版本的迁移规则参考，�
 
 若候选比较没有带来足够收益，发布单候选版并在报告解释。若运行恢复接口存在限制，先完成代码修复和评测，公开限定恢复范围，不为了功能清单重写整套运行时。
 
-## 10. 未来简历表述
-
-当前可以写入简历的已完成事实，限于代码和测试能够证明的范围：
-
-- 基于 OpenRath v2 工作流接口开发 Python 依赖升级修复后端，拆分复现、修复、补丁应用和验证阶段，并提供模型无关的 JSON Repairer 协议。
-- 实现 SQLite 事务、租约与 fencing token、CAS revision、幂等副作用账本和 UNKNOWN 对账机制，拒绝过期 Worker 写入及同 key 异请求重放。
-- 实现 traceback + AST import 图的有界上下文选择、真实 Git patch/test 闭环和 HTML 审计报告；当前测试覆盖正常闭环、租约接管和副作用恢复语义。
-- 实现 diff 路径独立解析与保护策略，阻止 Repairer 修改测试、CI 和验收器；独立验收命令不会进入 Repairer 输入或公开报告，并完成 Pydantic 2.13.5 三案例迁移基准，当前确定性基线为 3/3 通过。
-
-容器隔离、真正不可访问的 hidden tests、多候选对比和成规模评测尚未实现，不能写成已完成结果。当前本地进程边界只能做到“不把验收命令主动传给 Repairer”，不能阻止恶意进程扫描宿主文件系统。
-
-面试准备重点：为什么不是直接使用迁移规则；为什么分支会话不等于隔离工作区；检查点为什么不能独自保证代码状态一致；如何防止模型修改测试以获得假通过；多候选是否值得额外费用。
-
-## 11. 已核对的参考来源
+## 10. 已核对的参考来源
 
 - [OpenRath README：能力边界、扩展接口与 Beta 状态](https://github.com/Rath-Team/OpenRath)
 - [OpenRath 官方场景示例：持久化任务与制品模式](https://github.com/Rath-Team/OpenRath-Example)
 - [OpenRath 版本记录](https://github.com/Rath-Team/OpenRath/releases)
 - [bump-pydantic：历史迁移规则及归档状态](https://github.com/pydantic/bump-pydantic)
 
-本文中的核心本地闭环已经代码级验证；OpenRath 2.0.0 已在隔离虚拟环境中完成注册、提交和 `work_once` 成功终态联调。容器执行、成规模迁移任务集与线上部署仍待后续验证。
+本文中的核心本地闭环已经代码级验证；OpenRath 2.0.0 已在隔离虚拟环境中完成注册、提交和 `work_once` 成功终态联调，静态项目页已通过 Pages 工作流发布。容器执行与成规模迁移任务集仍待后续验证。
