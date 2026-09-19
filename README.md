@@ -1,5 +1,7 @@
 # UpgradeLab
 
+Live project page: [lelelelelel314.github.io/upgradelab](https://lelelelelel314.github.io/upgradelab/)
+
 UpgradeLab is a durable backend for AI-assisted dependency upgrade repair. A failed upgrade is
 turned into a reproducible workflow: capture the failure, select a bounded code context, request
 a patch from a model-agnostic repair agent, apply it exactly once, rerun the contract tests, and
